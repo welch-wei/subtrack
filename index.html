@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SubTrack · 订阅管家</title>
+  <meta name="description" content="追踪你的所有订阅费用，避免忘记取消，优化月支出。" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Inter', 'Noto Sans SC', sans-serif; }
+    .glass { background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); }
+    .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .card-hover { transition: all .2s ease; }
+    .card-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <div class="gradient-bg text-white pb-24">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-6">
+      <div class="flex justify-between items-center mb-8">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-xl">📊</div>
+          <h1 class="text-2xl font-bold tracking-tight">SubTrack</h1>
+        </div>
+        <div class="flex gap-2">
+          <button id="btnImport" class="px-3 py-2 text-sm bg-white/10 hover:bg-white/20 rounded-lg transition">导入</button>
+          <button id="btnExport" class="px-3 py-2 text-sm bg-white/10 hover:bg-white/20 rounded-lg transition">导出</button>
+          <button id="btnDemo" class="px-3 py-2 text-sm bg-white/10 hover:bg-white/20 rounded-lg transition">示例</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white/10 rounded-2xl p-5 border border-white/10">
+          <p class="text-white/70 text-sm">每月订阅支出</p>
+          <p id="monthlyTotal" class="text-3xl font-bold mt-1">¥0.00</p>
+        </div>
+        <div class="bg-white/10 rounded-2xl p-5 border border-white/10">
+          <p class="text-white/70 text-sm">每年订阅支出</p>
+          <p id="yearlyTotal" class="text-3xl font-bold mt-1">¥0.00</p>
+        </div>
+        <div class="bg-white/10 rounded-2xl p-5 border border-white/10">
+          <p class="text-white/70 text-sm">活跃订阅</p>
+          <p id="activeCount" class="text-3xl font-bold mt-1">0</p>
+        </div>
+        <div class="bg-white/10 rounded-2xl p-5 border border-white/10">
+          <p class="text-white/70 text-sm">未来 30 天待扣款</p>
+          <p id="upcomingTotal" class="text-3xl font-bold mt-1">¥0.00</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 -mt-12">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Form -->
+      <div class="lg:col-span-1">
+        <div class="glass rounded-2xl shadow-lg border border-slate-100 p-6 sticky top-6">
+          <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+            <span id="formTitle">新增订阅</span>
+            <button id="btnReset" class="ml-auto text-xs text-slate-400 hover:text-slate-600 hidden">重置</button>
+          </h2>
+          <form id="subForm" class="space-y-4">
+            <input type="hidden" id="editId" />
+            <div>
+              <label class="block text-xs font-medium text-slate-500 mb-1">名称</label>
+              <input id="name" type="text" placeholder="例如 Netflix" required class="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">金额</label>
+                <input id="amount" type="number" step="0.01" min="0" placeholder="0.00" required class="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">币种</label>
+                <select id="currency" class="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value="CNY">CNY ¥</option>
+                  <option value="USD">USD $</option>
+                  <option value="EUR">EUR €</option>
+                  <option value="GBP">GBP £</option>
+                  <option value="JPY">JPY ¥</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">周期</label>
+                <select id="cycle" class="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value="weekly">每周</option>
+                  <option value="monthly" selected>每月</option>
+                  <option value="quarterly">每季</option>
+                  <option value="yearly">每年</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">分类</label>
+                <select id="category" class="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value="video">视频</option>
+                  <option value="music">音乐</option>
+                  <option value="cloud">云存储</option>
+                  <option value="software">软件</option>
+                  <option value="gaming">游戏</option>
+                  <option value="news">资讯</option>
+                  <option value="fitness">健身</option>
+                  <option value="shopping">购物会员</option>
+                  <option value="other">其他</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-500 mb-1">下次扣款日</label>
+              <input id="nextDate" type="date" required class="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+            <div class="flex items-center gap-2">
+              <input id="reminder" type="checkbox" class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+              <label for="reminder" class="text-sm text-slate-600">提前 3 天提醒我（本地）</label>
+            </div>
+            <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition shadow-md shadow-indigo-200">
+              保存订阅
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Main content -->
+      <div class="lg:col-span-2 space-y-6">
+        <div class="glass rounded-2xl shadow-lg border border-slate-100 p-6">
+          <h3 class="text-base font-bold mb-4">分类支出</h3>
+          <div class="h-48 flex justify-center">
+            <canvas id="categoryChart"></canvas>
+          </div>
+        </div>
+
+        <div class="glass rounded-2xl shadow-lg border border-slate-100 p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-base font-bold">订阅列表</h3>
+            <select id="sortBy" class="text-sm border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="dueSoon">最近到期优先</option>
+              <option value="amountDesc">金额从高到低</option>
+              <option value="amountAsc">金额从低到高</option>
+              <option value="name">名称</option>
+            </select>
+          </div>
+          <div id="subList" class="space-y-3"></div>
+          <div id="emptyState" class="hidden text-center py-12">
+            <div class="text-4xl mb-3">📝</div>
+            <p class="text-slate-500">还没有订阅，添加第一个吧</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="max-w-6xl mx-auto px-4 py-8 text-center text-xs text-slate-400">
+    SubTrack · 数据仅存于本机浏览器 · 请勿存储敏感支付信息
+  </footer>
+
+  <input type="file" id="fileInput" accept=".json" class="hidden" />
+  <script src="app.js"></script>
+</body>
+</html>
